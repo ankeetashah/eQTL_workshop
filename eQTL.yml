@@ -1,0 +1,10 @@
+name: eQTL_WORKSHOP
+dependencies:
+  - python=2.7
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn==0.19.1 
+  
+
+
