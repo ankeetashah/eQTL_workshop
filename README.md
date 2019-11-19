@@ -1,9 +1,8 @@
 # HGEN 47000: Human Genetics I: eQTL Workshop
 
 ## Installation Instructions
-### Download htslib & bcftools
+### Download htslib 
 `wget http://sourceforge.net/projects/samtools/files/samtools/1.2/htslib-1.2.1.tar.bz2` \
-`wget http://sourceforge.net/projects/samtools/files/samtools/1.2/bcftools-1.2.tar.bz2`
 
 ### Clone the eQTL_workshop directory
 `git clone https://github.com/ankeetashah/eQTL_workshop.git`
@@ -14,7 +13,7 @@
 `make`
 
 ### Move tabix and bgzip into eQTL_workshop/bin directory
-Of note, you will have to use `pwd` to determine where you downloaded the `eQTL_workshop` on your laptop. For example, I have the directory on my Desktop: \
+Of note, you will have to use `pwd` to determine where you downloaded the `eQTL_workshop` on your laptop. For example, I have the directory on my Desktop. You need to be inside the htslib directory to move the binaries:  \
 `mv tabix /Users/ankeetashah/Desktop/eQTL_workshop/bin/.` \
 `mv bgzip /Users/ankeetashah/Desktop/eQTL_workshop/bin/.` 
 
