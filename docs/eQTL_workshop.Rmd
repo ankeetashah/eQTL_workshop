@@ -1,0 +1,130 @@
+---
+title: "Human Genetics I: eQTL_workshop"
+author: "Ankeeta Shah"
+date: "11/17/2019"
+output: pdf_document
+---
+
+#Setup 
+```{r setup, include=FALSE, echo=TRUE}
+library(knitr)
+library(reticulate)
+#note that you may need to change the paths here depending on where you downloaded the eQTL workshop github repository
+reticulate::use_condaenv(condaenv = "/Users/ankeetashah/eQTL_workshop/eQTL.yml")
+reticulate::use_python("/Users/ankeetashah/miniconda2/envs/eQTL_WORKSHOP/bin/python")
+opts_knit$set(root.dir = "/Users/ankeetashah/eQTL_workshop/")
+setwd("/Users/ankeetashah/eQTL_workshop/") 
+```
+
+
+# Pre-processing: normalizing read counts
+## Inspect read counts data
+We will take a look at the header and first entry in the input file that contains read counts:
+```{bash}
+head -n 2 input/YRI.GEUVADIS.counts.txt
+```
+Notice that our header contains "chrom" followed by sample IDs for all YRI individuals. 
+The second line's first column contains gene information, specifically chromosome:gene_start_position:gene_end_position:gene_ID:strand, and subsequent columns contain read counts per individual.
+
+## Extract gene lengths (in kb)
+This function will take in the counts file as input and extract the chromosome:gene_start_position:gene_end_position:gene_ID:strand information to obtain gene name and length infromation
+```{python}
+def get_length(count, len_file):
+        with open(count, 'r') as f:
+                next(f)
+                for line in f:
+                        line = line.rstrip()
+                        ID = line.split(" ")[0]
+                        with open(len_file, 'a') as output:
+                                output.write(ID)
+                        chrom, s, e, gene, strand = ID.split(":")
+                        length = float(abs(int(s) - int(e))/1000) # difference between start and end positions 
+                        with open(len_file, 'a') as output: # divide by 1,000 to get from bp to kb
+                                output.write(" " + str(length) + "\n")
+
+def main(count, len_file):
+        get_length(count, len_file)
+
+if __name__ == "__main__":
+        main('input/YRI.GEUVADIS.counts.txt', 'output/gene_length.txt')                                  
+```
+
+We can take a look at what the gene lengths look like:
+```{bash}
+head output/gene_length.txt
+```
+
+## Normalize read counts (by gene length and sequencing depth) to get transcripts per million (TPM)
+```{python}
+import pandas as pd
+import numpy as np
+                                 
+def get_depth(counts,len_file, tpm_file):
+        lengths = pd.read_csv(len_file, sep = " ", index_col=0, header=None) # read in gene lengths file 
+        data = pd.read_csv(counts, index_col=0, sep = " ", header=0) # read in counts file 
+        data = data[np.isfinite(data)] 
+        data.loc[:,"NA18486":"NA19257"] = data.loc[:,"NA18486":"NA19257"].div(lengths[1], axis=0) # normalize by gene length
+        data= data.dropna()
+        data.loc['Total']= data[np.isfinite(data) | np.isnan(data)].sum(axis=0)/1000000 #divide by million
+        data.div = data / data.loc['Total'] # normalize by sequencing depth
+        data.div = data.div[np.isfinite(data.div)]
+        data.div= data.div.dropna()
+        data.div.to_csv(tpm_file, sep = " ") # write to output file
+
+def main(counts, len_file, tpm_file):
+        get_depth(counts,len_file, tpm_file)
+
+if __name__ == "__main__":
+        main('input/YRI.GEUVADIS.counts.txt', 'output/gene_length.txt', 'output/YRI.GEUVADIS.tpm.txt')                          
+
+```
+
+## Compare the original counts data and the TPM data
+```{bash}
+head -n 2  YRI.GEUVAIDS.counts.txt 
+head -n 2 output/YRI.GEUVADIS.tpm.txt
+```
+
+
+# Quantile normalize the phenotype data and obtain a file with the top 10 PCs
+```{bash}
+python bin/prepare_phenotype.py output/YRI.GEUVADIS.tpm.txt -p 10 
+sh output/YRI.GEUVADIS.tpm.txt_prepare.sh
+```
+
+# Association (genetic variants ~ gene expression)
+## Nominal pass
+Note that FastQTL's default is to test all SNPs within 1MB (--window 1e6) of a gene's transcription start site (TSS)
+```{bash}
+fastQTL.static  --vcf input/chr22.keep.recode.two.vcf.gz --bed output/YRI.GEUVADIS.tpm.txt.qqnorm_chr22.gz  --chunk 1 1 --out output/YRI.chr22.nominal --normal --cov output/YRI.GEUVADIS.tpm.txt.PCs 
+```
+
+## Permutation pass
+```{bash}
+fastQTL.static  --vcf chr22.keep.recode.two.vcf.gz --bed YRI.GEUVADIS.tpm.txt.qqnorm_chr16.gz  --chunk 1 1 --out YRI.chr16.permute --normal --cov YRI.GEUVADIS.tpm.txt.PCs --permute 1000
+```
+
+## Obtain eQTL (at FDR < 10%)
+Note that we are using 
+```{r}
+d = read.table("output/YRI.chr22.permute", hea=F, stringsAsFactors=F)
+colnames(d) = c("pid", "nvar", "shape1", "shape2", "dummy", "sid", "dist", "npval", "slope", "ppval", "bpval")
+d$bh = p.adjust(d$bpval, method="fdr")
+write.table(d[which(d$bh <= 0.05), c(1,6,9,11)], "output/YRI.chr22.permute.benjamini.5per.txt", quote=F, row.names=F, col.names=T)
+```
+
+```{bash}
+sort -k4 -g output/YRI.chr22.permute.benjamini.5per.txt | head
+```
+The columns: 
+Gene ID
+Number of variants tested in cis for this phenotype
+MLE of the shape1 parameter of the Beta distribution
+MLE of the shape2 parameter of the Beta distribution
+Dummy column 
+ID of the best variant found for this molecular phenotypes (i.e. with the smallest p-value)
+Distance between the gene - SNP pair
+The nominal p-value of association 
+The slope associated with the nominal p-value of association 
+A first permutation p-value directly obtained from the permutations with the direct method. This is a corrected version of the nominal p-value that accounts for the fact that multiple variants are tested per molecular phenotype.
+A second permutation p-value permutation p-value obtained via beta approximation (use in downstream analysis)
