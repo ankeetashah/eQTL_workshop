@@ -7,13 +7,15 @@ output: pdf_document
 
 #Setup 
 ```{r setup, include=FALSE, echo=TRUE}
+install.packages("knitr")
+install.packages("reticulate")
 library(knitr)
 library(reticulate)
 #note that you may need to change the paths here depending on where you downloaded the eQTL workshop github repository
-reticulate::use_condaenv(condaenv = "/Users/ankeetashah/eQTL_workshop/eQTL.yml")
+reticulate::use_condaenv(condaenv = "../eQTL.yml")
 reticulate::use_python("/Users/ankeetashah/miniconda2/envs/eQTL_WORKSHOP/bin/python")
-opts_knit$set(root.dir = "/Users/ankeetashah/eQTL_workshop/")
-setwd("/Users/ankeetashah/eQTL_workshop/") 
+opts_knit$set(root.dir = ".") #critical that this is set correctly
+setwd(".") 
 ```
 
 
