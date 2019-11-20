@@ -176,7 +176,7 @@ if __name__ == "__main__":
     parser.add_option("-p", "--pcs", dest="npcs", default = 50, help="number of PCs output")
     (options, args) = parser.parse_args()
     if len(args)==0:
-        sys.stderr.write("Error: no ratio file provided... (e.g. python leafcutter/scripts/prepare_phenotype_table.py input_perind.counts.gz\n")
+        sys.stderr.write("Error: no ratio file provided... (e.g. python prepare_phenotype.py input_perind.counts.gz\n")
         exit(0)
     main(args[0], int(options.npcs) )
     
