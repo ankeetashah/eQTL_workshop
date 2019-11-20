@@ -7,15 +7,15 @@ output: pdf_document
 
 #Setup 
 ```{r setup, include=FALSE, echo=TRUE}
-install.packages("knitr")
-install.packages("reticulate")
+#install.packages("knitr")
+#install.packages("reticulate")
 library(knitr)
 library(reticulate)
 #note that you may need to change the paths here depending on where you downloaded the eQTL workshop github repository
 reticulate::use_condaenv(condaenv = "../eQTL.yml")
 reticulate::use_python("/Users/ankeetashah/miniconda2/envs/eQTL_WORKSHOP/bin/python")
-opts_knit$set(root.dir = ".") #critical that this is set correctly
-setwd(".") 
+opts_knit$set(root.dir = "~/Desktop/eQTL_workshop") #critical that this is set correctly
+setwd("~/Desktop/eQTL_workshop")
 ```
 
 
@@ -40,8 +40,8 @@ def get_length(count, len_file):
                         with open(len_file, 'a') as output:
                                 output.write(ID)
                         chrom, s, e, gene, strand = ID.split(":")
-                        length = float(abs(int(s) - int(e))/1000) # difference between start and end positions 
-                        with open(len_file, 'a') as output: # divide by 1,000 to get from bp to kb
+                        length = float(abs(int(s) - int(e)))/1000 # difference between start and end positions 
+                        with open(len_file, 'a') as output: # divide by 1,000 to convert bp to kb
                                 output.write(" " + str(length) + "\n")
 
 def main(count, len_file):
@@ -67,7 +67,7 @@ def get_depth(counts,len_file, tpm_file):
         data = data[np.isfinite(data)] 
         data.loc[:,"NA18486":"NA19257"] = data.loc[:,"NA18486":"NA19257"].div(lengths[1], axis=0) # normalize by gene length
         data= data.dropna()
-        data.loc['Total']= data[np.isfinite(data) | np.isnan(data)].sum(axis=0)/1000000 #divide by million
+        data.loc['Total']= data[np.isfinite(data) ].sum(axis=0)/1000000 #divide by million #| np.isnan(data)
         data.div = data / data.loc['Total'] # normalize by sequencing depth
         data.div = data.div[np.isfinite(data.div)]
         data.div= data.div.dropna()
@@ -82,11 +82,10 @@ if __name__ == "__main__":
 ```
 
 ## Compare the original counts data and the TPM data
-```{bash}
-head -n 2  YRI.GEUVAIDS.counts.txt 
-head -n 2 output/YRI.GEUVADIS.tpm.txt
+```{bash, engine="/bin/bash"}
+head -n 3  input/YRI.GEUVADIS.counts.txt 
+head -n 3 output/YRI.GEUVADIS.tpm.txt
 ```
-
 
 # Quantile normalize the phenotype data and obtain a file with the top 10 PCs
 ```{bash}
@@ -94,7 +93,7 @@ python bin/prepare_phenotype.py output/YRI.GEUVADIS.tpm.txt -p 10
 sh output/YRI.GEUVADIS.tpm.txt_prepare.sh
 ```
 
-# Association (genetic variants ~ gene expression)
+# Association (genetic variants ~ gene expression) -- this will not run on your local computer 
 ## Nominal pass
 Note that FastQTL's default is to test all SNPs within 1MB (--window 1e6) of a gene's transcription start site (TSS)
 ```{bash}
@@ -105,6 +104,14 @@ fastQTL.static  --vcf input/chr22.keep.recode.two.vcf.gz --bed output/YRI.GEUVAD
 ```{bash}
 fastQTL.static  --vcf chr22.keep.recode.two.vcf.gz --bed YRI.GEUVADIS.tpm.txt.qqnorm_chr16.gz  --chunk 1 1 --out YRI.chr16.permute --normal --cov YRI.GEUVADIS.tpm.txt.PCs --permute 1000
 ```
+
+## Take a look at the association
+```{r}
+d = read.table("output/YRI.chr22.permute", hea=F, stringsAsFactors=F)
+colnames(d) = c("pid", "nvar", "shape1", "shape2", "dummy", "sid", "dist", "npval", "slope", "ppval", "bpval")
+head(d)
+```
+
 
 ## Obtain eQTL (at FDR < 10%)
 Note that we are using 
