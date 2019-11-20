@@ -2,7 +2,7 @@
 
 ## Installation Instructions
 ### Download htslib 
-`wget http://sourceforge.net/projects/samtools/files/samtools/1.2/htslib-1.2.1.tar.bz2` \
+`wget http://sourceforge.net/projects/samtools/files/samtools/1.2/htslib-1.2.1.tar.bz2` 
 
 ### Clone the eQTL_workshop directory
 `git clone https://github.com/ankeetashah/eQTL_workshop.git`
